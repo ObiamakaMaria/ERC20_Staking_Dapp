@@ -24,8 +24,23 @@ import {
   StakingUnpaused,
   TokenRecovered,
   Unpaused,
-  Withdrawn
+  Withdrawn,
+  User
 } from "../generated/schema"
+import { Bytes, BigInt } from "@graphprotocol/graph-ts"
+
+// Helper function to get or create a uer
+function getOrCreateUser(userAddress: Bytes): User {
+  let user = User.load(userAddress)
+  if (!user) {
+    user = new User(userAddress)
+    user.totalStaked = BigInt.fromString("0")
+    user.lastStakeTimestamp = BigInt.fromString("0")
+    user.pendingRewards = BigInt.fromString("0")
+    user.totalRewardsClaimed = BigInt.fromString("0")
+  }
+  return user
+}
 
 export function handleEmergencyWithdrawn(event: EmergencyWithdrawnEvent): void {
   let entity = new EmergencyWithdrawn(
@@ -42,6 +57,11 @@ export function handleEmergencyWithdrawn(event: EmergencyWithdrawnEvent): void {
   entity.transactionHash = event.transaction.hash
 
   entity.save()
+
+  // Update user entity
+  let user = getOrCreateUser(event.params.user)
+  user.totalStaked = event.params.newTotalStaked
+  user.save()
 }
 
 export function handleOwnershipTransferred(
@@ -104,6 +124,12 @@ export function handleRewardsClaimed(event: RewardsClaimedEvent): void {
   entity.transactionHash = event.transaction.hash
 
   entity.save()
+
+  // Update user entity
+  let user = getOrCreateUser(event.params.user)
+  user.pendingRewards = event.params.newPendingRewards
+  user.totalRewardsClaimed = user.totalRewardsClaimed.plus(event.params.amount)
+  user.save()
 }
 
 export function handleStaked(event: StakedEvent): void {
@@ -121,6 +147,12 @@ export function handleStaked(event: StakedEvent): void {
   entity.transactionHash = event.transaction.hash
 
   entity.save()
+
+  // Update user entity
+  let user = getOrCreateUser(event.params.user)
+  user.totalStaked = event.params.newTotalStaked
+  user.lastStakeTimestamp = event.params.timestamp
+  user.save()
 }
 
 export function handleStakingInitialized(event: StakingInitializedEvent): void {
@@ -208,4 +240,9 @@ export function handleWithdrawn(event: WithdrawnEvent): void {
   entity.transactionHash = event.transaction.hash
 
   entity.save()
+
+  // Update user entity
+  let user = getOrCreateUser(event.params.user)
+  user.totalStaked = event.params.newTotalStaked
+  user.save()
 }

@@ -1,5 +1,6 @@
 import { newMockEvent } from "matchstick-as"
-import { ethereum, Address, BigInt } from "@graphprotocol/graph-ts"
+import { ethereum, Address, BigInt, Bytes } from "@graphprotocol/graph-ts"
+import { changetype } from "assemblyscript"
 import {
   EmergencyWithdrawn,
   OwnershipTransferred,
@@ -14,6 +15,7 @@ import {
   Unpaused,
   Withdrawn
 } from "../generated/StakingContract/StakingContract"
+import { User } from "../generated/schema"
 
 export function createEmergencyWithdrawnEvent(
   user: Address,
@@ -346,4 +348,43 @@ export function createWithdrawnEvent(
   )
 
   return withdrawnEvent
+}
+
+/**
+ * Helper function to get or create a user entity
+ * @param userAddress - The address of the user as Bytes
+ * @returns User entity
+ * @throws Error if userAddress is invalid
+ */
+export function getOrCreateUser(userAddress: Bytes): User {
+  // Validate input
+  if (userAddress.length == 0) {
+    throw new Error("Invalid user address: address cannot be empty")
+  }
+
+  // Try to load existing user
+  let user = User.load(userAddress)
+  
+  // If user doesn't exist, create new one
+  if (!user) {
+    user = new User(userAddress)
+    user.totalStaked = BigInt.fromString("0")
+    user.lastStakeTimestamp = BigInt.fromString("0")
+    user.pendingRewards = BigInt.fromString("0")
+    user.totalRewardsClaimed = BigInt.fromString("0")
+  }
+  
+  return user
+}
+
+/**
+ * Helper function to create a mock event with basic metadata
+ * @returns A new mock event with block and transaction metadata
+ */
+export function createMockEvent(): ethereum.Event {
+  let mockEvent = newMockEvent()
+  mockEvent.block.number = BigInt.fromString("1")
+  mockEvent.block.timestamp = BigInt.fromString("1")
+  mockEvent.transaction.hash = Bytes.fromHexString("0x1234")
+  return mockEvent
 }
